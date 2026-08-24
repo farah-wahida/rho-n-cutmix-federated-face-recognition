@@ -16,6 +16,17 @@ jobs:
       - name: Create publication tag and release
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_NOTES: >-
+            Official code and experiment-configuration release for
+            "An Input-Level Privacy Pipeline for Federated Face Recognition via
+            rho-n CutMix and Keyed Block Permutation" (IEEE T-BIOM,
+            DOI: 10.1109/TBIOM.2026.3725635). This release includes the reusable
+            privacy pipeline, the exact 40-run experiment matrix, published
+            reference values for Tables IV-X, complete evaluation workflows,
+            the publication quickstart notebook, and reproducibility
+            documentation. Datasets, trained checkpoints, and derived biometric
+            images are not redistributed because of licensing, privacy, and
+            file-size constraints.
         run: |
           if gh release view v1.0.0 --repo "${{ github.repository }}" >/dev/null 2>&1; then
             echo "Release v1.0.0 already exists."
@@ -24,9 +35,5 @@ jobs:
           gh release create v1.0.0 \
             --repo "${{ github.repository }}" \
             --target 85ef6214c701b2755cd46d10f9335894729b4452 \
-            --title "v1.0.0 — Publication Release" \
-            --notes "Official code and experiment-configuration release for “An Input-Level Privacy Pipeline for Federated Face Recognition via rho-n CutMix and Keyed Block Permutation” (IEEE T-BIOM, DOI: 10.1109/TBIOM.2026.3725635).
-
-This release includes the reusable privacy pipeline, the exact 40-run experiment matrix, published reference values for Tables IV–X, complete evaluation workflows, the publication quickstart notebook, and reproducibility documentation.
-
-Datasets, trained checkpoints, and derived biometric images are not redistributed because of licensing, privacy, and file-size constraints."
+            --title "v1.0.0 - Publication Release" \
+            --notes "$RELEASE_NOTES"
