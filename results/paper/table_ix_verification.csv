@@ -1,0 +1,9 @@
+dataset,backbone,configuration,eer_percent,tar_far_1e-1_percent,tar_far_1e-2_percent,tar_far_1e-3_percent
+pubfig,resnet18,defense_a,13.56,83.71,51.12,16.04
+pubfig,resnet34,defense_a,11.56,86.19,55.47,27.36
+lfw,resnet18,defense_a,9.10,91.26,68.71,38.64
+lfw,resnet34,defense_a,7.19,95.63,71.68,43.71
+pins,resnet18,defense_a,19.73,67.12,29.67,12.12
+pins,resnet34,defense_a,17.66,73.79,30.94,15.55
+cifar10,resnet18,defense_a,9.38,91.36,55.98,26.40
+cifar10,resnet34,defense_a,4.08,98.66,83.08,47.36
