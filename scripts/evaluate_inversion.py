@@ -36,7 +36,9 @@ def main() -> None:
 
     # The attacker knows the trained classifier and defense design but not the
     # master key or sample-specific permutation index.
-    logits_fn = lambda images: model.backbone(images)
+    mean = torch.tensor((0.485, 0.456, 0.406), device=device).view(1, 3, 1, 1)
+    std = torch.tensor((0.229, 0.224, 0.225), device=device).view(1, 3, 1, 1)
+    logits_fn = lambda images: model.backbone((images - mean) / std)
     for target in targets:
         result = adaptive_full_access_inversion(
             logits_fn,
