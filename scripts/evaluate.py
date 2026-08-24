@@ -1,4 +1,4 @@
-"""Evaluate recognition utility and calibration."""
+"""Evaluate recognition utility and validation-fitted calibration."""
 
 from __future__ import annotations
 
@@ -31,6 +31,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
     parser.add_argument("--data-root")
+    parser.add_argument("--validation-root")
     parser.add_argument("--checkpoint")
     args = parser.parse_args()
 
@@ -41,18 +42,16 @@ def main() -> None:
         if config.defense.enabled
         else config.dataset.root
     )
+    dataset_type = PreparedPrivacyDataset if config.defense.enabled else RawImageFolder
+    dataset = dataset_type(data_root, config.dataset.image_size)
 
+    codebook = None
     if config.defense.enabled:
-        dataset = PreparedPrivacyDataset(data_root, config.dataset.image_size)
-        keyed_permutation = KeyedBlockPermutation(
+        codebook = KeyedBlockPermutation(
             config.defense.grid_size,
             config.defense.codebook_size,
             config.defense.root_key,
-        )
-        codebook = keyed_permutation.codebook
-    else:
-        dataset = RawImageFolder(data_root, config.dataset.image_size)
-        codebook = None
+        ).codebook
 
     model = build_model(
         config.model.backbone,
@@ -63,17 +62,30 @@ def main() -> None:
     )
     checkpoint = Path(args.checkpoint) if args.checkpoint else config.output_dir / "model.pt"
     model.load_state_dict(torch.load(checkpoint, map_location="cpu"))
-    loader = DataLoader(
-        dataset,
-        batch_size=config.federated.batch_size,
-        shuffle=False,
+    logits, targets = collect_logits(
+        model,
+        DataLoader(dataset, batch_size=config.federated.batch_size, shuffle=False),
+        device,
     )
-    logits, targets = collect_logits(model, loader, device)
     raw = classification_metrics(logits, targets)
-
     results: dict[str, object] = {"raw": asdict(raw)}
+
     if config.evaluation.temperature_scaling:
-        temperature = fit_temperature(logits, targets)
+        if not args.validation_root:
+            raise ValueError(
+                "--validation-root is required when temperature scaling is enabled."
+            )
+        validation_set = dataset_type(args.validation_root, config.dataset.image_size)
+        validation_logits, validation_targets = collect_logits(
+            model,
+            DataLoader(
+                validation_set,
+                batch_size=config.federated.batch_size,
+                shuffle=False,
+            ),
+            device,
+        )
+        temperature = fit_temperature(validation_logits, validation_targets)
         calibrated = classification_metrics(logits, targets, temperature)
         results.update(
             {
