@@ -3,22 +3,22 @@ device: auto
 
 datasets:
   pubfig:
-    root: data/raw/pubfig
+    root: data/raw/pubfig/train
     image_size: 224
     num_classes: 62
     minimum_patch_size: 12
   lfw:
-    root: data/raw/lfw
+    root: data/raw/lfw/train
     image_size: 224
     num_classes: 62
     minimum_patch_size: 12
   pins:
-    root: data/raw/pins
+    root: data/raw/pins/train
     image_size: 224
     num_classes: 105
     minimum_patch_size: 12
   cifar10:
-    root: data/raw/cifar10
+    root: data/raw/cifar10/train
     image_size: 64
     num_classes: 10
     minimum_patch_size: 8
