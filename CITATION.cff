@@ -9,7 +9,7 @@ authors:
     given-names: Ibrahim
 repository-code: "https://github.com/farah-wahida/rho-n-cutmix-federated-face-recognition"
 license: MIT
-version: 0.1.0
+version: 1.0.0
 date-released: 2026-08-24
 preferred-citation:
   type: article
