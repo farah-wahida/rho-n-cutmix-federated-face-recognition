@@ -23,9 +23,9 @@ def main() -> None:
         for backbone in grid["backbones"]:
             for defense_name, defense in grid["defenses"].items():
                 prepared_root = (
-                    f"data/prepared/{dataset_name}/{defense_name}"
+                    f"data/prepared/{dataset_name}/train/{defense_name}"
                     if defense["enabled"]
-                    else f"data/raw/{dataset_name}"
+                    else dataset["root"]
                 )
                 values = {
                     "seed": grid["seed"],
