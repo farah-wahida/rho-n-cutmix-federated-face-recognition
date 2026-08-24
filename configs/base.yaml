@@ -3,8 +3,8 @@ device: auto
 
 dataset:
   name: pubfig
-  root: data/raw/pubfig
-  prepared_root: data/prepared/pubfig/defense_a
+  root: data/raw/pubfig/train
+  prepared_root: data/prepared/pubfig/train/defense_a
   image_size: 224
   num_classes: 62
 
