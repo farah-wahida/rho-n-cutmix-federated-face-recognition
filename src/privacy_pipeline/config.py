@@ -40,7 +40,10 @@ class FederatedConfig:
     local_epochs: int
     batch_size: int
     learning_rate: float
+    minimum_learning_rate: float
     weight_decay: float
+    gradient_clip_norm: float
+    early_stopping_patience: int
     dirichlet_alpha: float
     confidence_penalty_weight: float
 
@@ -49,9 +52,16 @@ class FederatedConfig:
 class EvaluationConfig:
     validation_fraction: float
     temperature_scaling: bool
+    ece_bins: int
+    verification_fars: tuple[float, ...]
     inversion_targets: int
     inversion_restarts: int
     inversion_iterations: int
+    inversion_learning_rate: float
+    inversion_tv_weight: float
+    inversion_l2_weight: float
+    inversion_permutation_entropy_weight: float
+    inversion_sinkhorn_iterations: int
 
 
 @dataclass(frozen=True)
@@ -71,6 +81,8 @@ def _build(section: type, values: dict[str, Any]):
     for key in ("root", "prepared_root", "output_dir"):
         if key in converted:
             converted[key] = Path(converted[key])
+    if section is EvaluationConfig:
+        converted["verification_fars"] = tuple(converted["verification_fars"])
     return section(**converted)
 
 
