@@ -53,9 +53,10 @@ def train_client(
     learning_rate: float,
     weight_decay: float,
     confidence_penalty_weight: float,
-    gradient_clip_norm: float,
-    device: torch.device,
+    gradient_clip_norm: float = 5.0,
+    device: torch.device | None = None,
 ) -> tuple[OrderedDict[str, Tensor], float]:
+    device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = deepcopy(global_model).to(device)
     model.train()
     optimizer = torch.optim.Adam(
@@ -135,9 +136,9 @@ def federated_train(
     local_epochs: int,
     batch_size: int,
     learning_rate: float,
-    minimum_learning_rate: float,
-    weight_decay: float,
-    gradient_clip_norm: float,
+    minimum_learning_rate: float = 0.0,
+    weight_decay: float = 0.0,
+    gradient_clip_norm: float = 5.0,
     confidence_penalty_weight: float = 0.0,
     validation_loader: DataLoader | None = None,
     early_stopping_patience: int = 0,
