@@ -19,7 +19,7 @@ defense:
   minimum_patch_size: 12
   grid_size: 8
   codebook_size: 64
-  root_key: pubfig_secret_key_v1
+  root_key: pubfig_reproduction_key_v1
 
 federated:
   clients: 5
@@ -29,12 +29,13 @@ federated:
   learning_rate: 0.001
   weight_decay: 0.0001
   dirichlet_alpha: 0.5
+  confidence_penalty_weight: 0.0
 
 evaluation:
   validation_fraction: 0.2
   temperature_scaling: true
   inversion_targets: 10
-  inversion_restarts: 3
+  inversion_restarts: 10
   inversion_iterations: 400
 
 output_dir: outputs/pubfig/defense_a/resnet18/seed42
