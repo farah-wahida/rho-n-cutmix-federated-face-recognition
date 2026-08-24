@@ -1,0 +1,20 @@
+name: rho-n-cutmix-publication
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pytorch>=2.1
+  - torchvision>=0.16
+  - pytorch-cuda=11.8
+  - numpy>=1.24
+  - pandas>=2.0
+  - pillow>=10.0
+  - pyyaml>=6.0
+  - scikit-learn>=1.3
+  - scikit-image>=0.22
+  - matplotlib>=3.8
+  - pip
+  - pip:
+      - -e .
