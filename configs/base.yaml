@@ -1,0 +1,41 @@
+seed: 42
+device: auto
+
+dataset:
+  name: pubfig
+  root: data/raw/pubfig/train
+  prepared_root: data/prepared/pubfig/train/defense_a
+  image_size: 224
+  num_classes: 62
+
+model:
+  backbone: resnet18
+  pretrained: true
+
+defense:
+  enabled: true
+  rho: 0.8
+  donors: 2
+  minimum_patch_size: 12
+  grid_size: 8
+  codebook_size: 64
+  root_key: pubfig_reproduction_key_v1
+
+federated:
+  clients: 5
+  rounds: 50
+  local_epochs: 3
+  batch_size: 64
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  dirichlet_alpha: 0.5
+  confidence_penalty_weight: 0.0
+
+evaluation:
+  validation_fraction: 0.2
+  temperature_scaling: true
+  inversion_targets: 10
+  inversion_restarts: 10
+  inversion_iterations: 400
+
+output_dir: outputs/pubfig/defense_a/resnet18/seed42

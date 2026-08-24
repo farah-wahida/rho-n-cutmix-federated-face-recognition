@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use this repository, please cite the associated paper."
+title: "rho-n CutMix Federated Face Recognition"
+type: software
+authors:
+  - family-names: Wahida
+    given-names: Farah
+  - family-names: Khalil
+    given-names: Ibrahim
+repository-code: "https://github.com/farah-wahida/rho-n-cutmix-federated-face-recognition"
+license: MIT
+version: 0.1.0
+date-released: 2026-08-24
+preferred-citation:
+  type: article
+  authors:
+    - family-names: Wahida
+      given-names: Farah
+    - family-names: Khalil
+      given-names: Ibrahim
+  title: "An Input-Level Privacy Pipeline for Federated Face Recognition via rho-n CutMix and Keyed Block Permutation"
+  journal: "IEEE Transactions on Biometrics, Behavior, and Identity Science"
+  year: 2026
+  doi: "10.1109/TBIOM.2026.3725635"
