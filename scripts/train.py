@@ -10,6 +10,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from torch.utils.data import DataLoader
 
 from privacy_pipeline.config import load_config
 from privacy_pipeline.data import PreparedPrivacyDataset, RawImageFolder, partition_dirichlet
@@ -41,29 +42,33 @@ def dataset_targets(dataset) -> list[int]:
     ]
 
 
+def load_dataset(root: str | Path, image_size: int, defended: bool):
+    cls = PreparedPrivacyDataset if defended else RawImageFolder
+    return cls(root, image_size)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
+    parser.add_argument("--validation-root")
     args = parser.parse_args()
 
     config = load_config(args.config)
     set_seed(config.seed)
     device = resolve_device(config.device)
+    dataset = load_dataset(
+        config.dataset.prepared_root if config.defense.enabled else config.dataset.root,
+        config.dataset.image_size,
+        config.defense.enabled,
+    )
 
+    codebook = None
     if config.defense.enabled:
-        dataset = PreparedPrivacyDataset(
-            config.dataset.prepared_root,
-            config.dataset.image_size,
-        )
-        keyed_permutation = KeyedBlockPermutation(
+        codebook = KeyedBlockPermutation(
             config.defense.grid_size,
             config.defense.codebook_size,
             config.defense.root_key,
-        )
-        codebook = keyed_permutation.codebook
-    else:
-        dataset = RawImageFolder(config.dataset.root, config.dataset.image_size)
-        codebook = None
+        ).codebook
 
     targets = dataset_targets(dataset)
     clients = partition_dirichlet(
@@ -79,6 +84,17 @@ def main() -> None:
         codebook=codebook,
         grid_size=config.defense.grid_size,
     )
+    validation_loader = None
+    if args.validation_root:
+        validation_set = load_dataset(
+            args.validation_root,
+            config.dataset.image_size,
+            config.defense.enabled,
+        )
+        validation_loader = DataLoader(
+            validation_set, batch_size=config.federated.batch_size, shuffle=False
+        )
+
     history = federated_train(
         model,
         dataset,
@@ -87,8 +103,12 @@ def main() -> None:
         local_epochs=config.federated.local_epochs,
         batch_size=config.federated.batch_size,
         learning_rate=config.federated.learning_rate,
+        minimum_learning_rate=config.federated.minimum_learning_rate,
         weight_decay=config.federated.weight_decay,
+        gradient_clip_norm=config.federated.gradient_clip_norm,
         confidence_penalty_weight=config.federated.confidence_penalty_weight,
+        validation_loader=validation_loader,
+        early_stopping_patience=config.federated.early_stopping_patience,
         device=device,
     )
 

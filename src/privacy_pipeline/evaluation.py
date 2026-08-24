@@ -32,8 +32,15 @@ class VerificationMetrics:
     tar_at_far: dict[float, float]
 
 
-def _forward(model: nn.Module, images: Tensor, permutation_indices: Tensor) -> Tensor:
-    return model(images, None if torch.all(permutation_indices < 0) else permutation_indices)
+@dataclass
+class IdentityMetrics:
+    feature_cosine: float
+    nearest_identity_rank: float
+    top1: float
+
+
+def _indices_or_none(permutation_indices: Tensor) -> Tensor | None:
+    return None if torch.all(permutation_indices < 0) else permutation_indices
 
 
 @torch.no_grad()
@@ -46,12 +53,34 @@ def collect_logits(
     model.eval().to(device)
     all_logits: list[Tensor] = []
     all_targets: list[Tensor] = []
-
     for images, targets, permutation_indices in loader:
-        logits = _forward(model, images.to(device), permutation_indices.to(device))
+        permutation_indices = permutation_indices.to(device)
+        logits = model(images.to(device), _indices_or_none(permutation_indices))
         all_logits.append(logits.cpu())
         all_targets.append(targets.cpu())
     return torch.cat(all_logits), torch.cat(all_targets)
+
+
+@torch.no_grad()
+def collect_embeddings(
+    model: nn.Module,
+    loader: DataLoader,
+    device: torch.device | None = None,
+) -> tuple[Tensor, Tensor]:
+    if not hasattr(model, "forward_features"):
+        raise TypeError("The model must expose forward_features for biometric evaluation.")
+    device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.eval().to(device)
+    all_embeddings: list[Tensor] = []
+    all_labels: list[Tensor] = []
+    for images, targets, permutation_indices in loader:
+        permutation_indices = permutation_indices.to(device)
+        embeddings = model.forward_features(
+            images.to(device), _indices_or_none(permutation_indices)
+        )
+        all_embeddings.append(embeddings.cpu())
+        all_labels.append(targets.argmax(dim=1).cpu())
+    return torch.cat(all_embeddings), torch.cat(all_labels)
 
 
 def expected_calibration_error(
@@ -60,7 +89,6 @@ def expected_calibration_error(
     confidences, predictions = probabilities.max(dim=1)
     boundaries = torch.linspace(0, 1, bins + 1, device=probabilities.device)
     ece = torch.zeros((), device=probabilities.device)
-
     for lower, upper in zip(boundaries[:-1], boundaries[1:]):
         in_bin = (confidences > lower) & (confidences <= upper)
         if in_bin.any():
@@ -71,14 +99,14 @@ def expected_calibration_error(
 
 
 def classification_metrics(
-    logits: Tensor, soft_targets: Tensor, temperature: float = 1.0
+    logits: Tensor, soft_targets: Tensor, temperature: float = 1.0, ece_bins: int = 15
 ) -> ClassificationMetrics:
     labels = soft_targets.argmax(dim=1)
     scaled_logits = logits / temperature
     probabilities = torch.softmax(scaled_logits, dim=1)
     accuracy = float(probabilities.argmax(dim=1).eq(labels).float().mean() * 100)
     nll = float(torch.nn.functional.cross_entropy(scaled_logits, labels))
-    ece = expected_calibration_error(probabilities, labels)
+    ece = expected_calibration_error(probabilities, labels, ece_bins)
     return ClassificationMetrics(accuracy=accuracy, ece=ece, nll=nll)
 
 
@@ -115,7 +143,7 @@ def membership_metrics(
 def verification_metrics(
     embeddings: Tensor,
     labels: Tensor,
-    fars: Iterable[float] = (1e-2, 1e-3),
+    fars: Iterable[float] = (1e-1, 1e-2, 1e-3),
 ) -> VerificationMetrics:
     normalized = torch.nn.functional.normalize(embeddings, dim=1)
     similarities = normalized @ normalized.T
@@ -127,7 +155,6 @@ def verification_metrics(
     fnr = 1.0 - tpr
     eer_index = int(np.nanargmin(np.abs(fnr - fpr)))
     eer = float((fnr[eer_index] + fpr[eer_index]) / 2)
-
     tar_at_far: dict[float, float] = {}
     for far in fars:
         valid = np.where(fpr <= far)[0]
@@ -141,15 +168,52 @@ def reconstruction_metrics(
     reconstructed = reconstructed.detach().cpu().clamp(0, 1)
     references = references.detach().cpu().clamp(0, 1)
     mse = torch.mean((reconstructed - references) ** 2).item()
-    ssim_values: list[float] = []
-
-    for reconstructed_image, reference_image in zip(reconstructed, references):
-        ssim_values.append(
-            structural_similarity(
-                reference_image.permute(1, 2, 0).numpy(),
-                reconstructed_image.permute(1, 2, 0).numpy(),
-                channel_axis=2,
-                data_range=1.0,
-            )
+    values = [
+        structural_similarity(
+            ref.permute(1, 2, 0).numpy(),
+            rec.permute(1, 2, 0).numpy(),
+            channel_axis=2,
+            data_range=1.0,
         )
-    return {"mse": mse, "ssim": float(np.mean(ssim_values))}
+        for rec, ref in zip(reconstructed, references)
+    ]
+    return {"mse": mse, "ssim": float(np.mean(values))}
+
+
+def identity_metrics(
+    reconstructed_embeddings: Tensor,
+    target_labels: Tensor,
+    reference_embeddings: Tensor,
+    reference_labels: Tensor,
+) -> IdentityMetrics:
+    reconstructed = torch.nn.functional.normalize(reconstructed_embeddings, dim=1)
+    references = torch.nn.functional.normalize(reference_embeddings, dim=1)
+    similarities = reconstructed @ references.T
+    identities = torch.unique(reference_labels)
+    class_scores = torch.stack(
+        [
+            similarities[:, reference_labels == identity].max(dim=1).values
+            for identity in identities
+        ],
+        dim=1,
+    )
+    order = class_scores.argsort(dim=1, descending=True)
+    target_positions = torch.stack(
+        [
+            (identities[order[row]] == target_labels[row]).nonzero()[0, 0] + 1
+            for row in range(len(target_labels))
+        ]
+    ).float()
+    top_indices = order[:, 0]
+    top1 = (identities[top_indices] == target_labels).float().mean()
+    target_cosines = torch.stack(
+        [
+            similarities[row, reference_labels == target_labels[row]].max()
+            for row in range(len(target_labels))
+        ]
+    )
+    return IdentityMetrics(
+        feature_cosine=float(target_cosines.mean()),
+        nearest_identity_rank=float(target_positions.mean()),
+        top1=float(top1),
+    )

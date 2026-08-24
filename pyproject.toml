@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rho-n-cutmix-federated-face-recognition"
-version = "0.1.0"
-description = "Input-level privacy pipeline for federated face recognition."
+version = "1.0.0"
+description = "Publication release for the rho-n CutMix federated face-recognition privacy pipeline."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
@@ -24,6 +24,10 @@ dependencies = [
   "scikit-image>=0.22",
   "matplotlib>=3.8"
 ]
+
+[project.urls]
+Paper = "https://doi.org/10.1109/TBIOM.2026.3725635"
+Repository = "https://github.com/farah-wahida/rho-n-cutmix-federated-face-recognition"
 
 [tool.setuptools.packages.find]
 where = ["src"]

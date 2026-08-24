@@ -4,26 +4,36 @@
 [![Tests](https://github.com/farah-wahida/rho-n-cutmix-federated-face-recognition/actions/workflows/tests.yml/badge.svg)](https://github.com/farah-wahida/rho-n-cutmix-federated-face-recognition/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Clean research code for **“An Input-Level Privacy Pipeline for Federated Face Recognition via rho-n CutMix and Keyed Block Permutation,”** accepted in IEEE Transactions on Biometrics, Behavior, and Identity Science.
+Official publication code for **“An Input-Level Privacy Pipeline for Federated Face Recognition via rho-n CutMix and Keyed Block Permutation,”** IEEE Transactions on Biometrics, Behavior, and Identity Science, DOI [10.1109/TBIOM.2026.3725635](https://doi.org/10.1109/TBIOM.2026.3725635).
 
-The implementation reorganizes the original experiment notebook into a reusable Python package. Repeated dataset/model cells, machine-specific paths, embedded outputs, and exploratory fragments have been removed. Data, trained weights, and generated attack images are not included.
+## Release contents
 
-## What the repository provides
+This publication release provides:
 
-- Multi-source rho-n CutMix with mixture labels
-- Deterministic keyed block permutation and authorized inverse decoding
-- ResNet-18 and ResNet-34 recognition models
-- Non-IID client partitioning and FedAvg training
-- Recognition accuracy, ECE, NLL, and validation-fitted temperature scaling
-- Score-based membership inference and effective AUC
-- Pairwise biometric verification metrics
-- Sinkhorn-relaxed adaptive full-access inversion utilities
-- A generated 40-run experiment matrix covering the paper settings
-- Unit tests and continuous integration
+- multi-source rho-n CutMix with mixture labels;
+- deterministic keyed 8 × 8 block permutation and authorized inverse decoding;
+- ResNet-18 and ResNet-34 recognition models;
+- five-client non-IID FedAvg training with the published optimization controls;
+- the exact 4-dataset × 2-backbone × 5-setting configuration matrix, including run-specific confidence penalties;
+- recognition, calibration, NLL, membership inference, biometric verification, adaptive inversion, identity correspondence, and latency evaluation;
+- machine-readable reference values for paper Tables IV–X;
+- an output-free quickstart notebook, tests, and continuous integration.
 
-## Pipeline
+The original monolithic experiment notebook has been replaced by reusable package modules and command-line workflows. Exploratory cells, machine-specific paths, and embedded outputs are not part of the release.
 
-On each authorized client, donor patches are inserted into a base image, the composite is scrambled with a key-derived block permutation, and the tuple consisting of the scrambled image, soft label, and retained permutation index is used locally. A parameter-free decoder restores the authorized block order before recognition. Only model updates and sample counts participate in FedAvg; images, labels, permutation indices, and the key remain local.
+## Scope and artifact availability
+
+| Artifact | Included | Location or reason |
+|---|---|---|
+| Source code | Yes | src/privacy_pipeline/ and scripts/ |
+| Exact experiment matrix | Yes | configs/paper_grid.yaml |
+| Published table values | Yes | results/paper/ |
+| Tutorial notebook | Yes | notebooks/publication_quickstart.ipynb |
+| Datasets | No | Original licenses and privacy conditions apply |
+| Trained checkpoints | No | Large research artifacts; rerun training |
+| Prepared/reconstructed images | No | Derived biometric data are not redistributed |
+
+Accordingly, the repository supports reference-result inspection and protocol reproduction. Exact numerical reruns additionally require the same licensed data release, file-level splits, software stack, and hardware behavior described in [the reproducibility guide](docs/reproducibility.md).
 
 ## Repository structure
 
@@ -35,27 +45,28 @@ On each authorized client, donor patches are inserted into a base image, the com
 ├── docs/
 │   ├── datasets.md
 │   └── reproducibility.md
+├── notebooks/
+│   └── publication_quickstart.ipynb
+├── results/paper/
+│   └── table_iv_...csv through table_x_...csv
 ├── scripts/
 │   ├── generate_configs.py
 │   ├── prepare_data.py
 │   ├── train.py
 │   ├── evaluate.py
 │   ├── evaluate_membership.py
-│   └── reproduce_tables.py
+│   ├── evaluate_verification.py
+│   ├── evaluate_inversion.py
+│   ├── evaluate_latency.py
+│   ├── reproduce_tables.py
+│   └── validate_release.py
 ├── src/privacy_pipeline/
-│   ├── attacks.py
-│   ├── config.py
-│   ├── data.py
-│   ├── evaluation.py
-│   ├── federated.py
-│   ├── models.py
-│   └── transforms.py
 └── tests/
 ~~~
 
 ## Installation
 
-Python 3.10 or later is recommended.
+Python 3.10 or later is supported.
 
 ~~~bash
 git clone https://github.com/farah-wahida/rho-n-cutmix-federated-face-recognition.git
@@ -71,25 +82,32 @@ pip install -r requirements-dev.txt
 pytest -q
 ~~~
 
-## Data
+## Validate the publication package
 
-Arrange each training, validation, and test split in class folders. The repository uses the same ImageFolder interface for PubFig, LFW, PINS, and CIFAR-10.
-
-~~~text
-data/raw/pubfig/train/<identity>/*.jpg
-data/raw/pubfig/validation/<identity>/*.jpg
-data/raw/pubfig/test/<identity>/*.jpg
+~~~bash
+python scripts/validate_release.py
 ~~~
 
-See [dataset preparation](docs/datasets.md) for the full layout, class counts, and defended-split workflow.
+This verifies generation of all 40 concrete run configurations and the presence of all seven machine-readable reference tables.
 
-## Generate the paper configurations
+## Inspect the published results
+
+Open [the quickstart notebook](notebooks/publication_quickstart.ipynb), or load the CSV files directly:
+
+~~~python
+import pandas as pd
+
+accuracy = pd.read_csv("results/paper/table_iv_accuracy.csv")
+inversion = pd.read_csv("results/paper/table_vii_inversion.csv")
+~~~
+
+## Generate the exact run configurations
 
 ~~~bash
 python scripts/generate_configs.py
 ~~~
 
-This creates 40 YAML files under configs/generated: four datasets, two backbones, and Raw plus Defenses A-D.
+The command writes 40 YAML files under configs/generated/. Settings are Raw and Defenses A–D:
 
 | Setting | rho | Donor patches | Keyed permutation | Inverse decoder |
 |---|---:|---:|---|---|
@@ -99,63 +117,47 @@ This creates 40 YAML files under configs/generated: four datasets, two backbones
 | Defense C | 0.8 | 3 | Yes | Yes |
 | Defense D | 0.8 | 4 | Yes | Yes |
 
-## Run an experiment
+## Run one experiment
 
-Prepare a defended training split:
-
-~~~bash
-python scripts/prepare_data.py \
-  --config configs/generated/pubfig/defense_a_resnet18.yaml
-~~~
-
-Train with FedAvg:
+After arranging a licensed dataset according to [the data guide](docs/datasets.md):
 
 ~~~bash
+python scripts/prepare_data.py --config configs/generated/pubfig/defense_a_resnet18.yaml
+
 python scripts/train.py \
-  --config configs/generated/pubfig/defense_a_resnet18.yaml
-~~~
+  --config configs/generated/pubfig/defense_a_resnet18.yaml \
+  --validation-root data/prepared/pubfig/validation/defense_a
 
-Evaluate on a held-out test split while fitting temperature only on validation data:
-
-~~~bash
 python scripts/evaluate.py \
   --config configs/generated/pubfig/defense_a_resnet18.yaml \
   --data-root data/prepared/pubfig/test/defense_a \
   --validation-root data/prepared/pubfig/validation/defense_a
 ~~~
 
-Evaluate score-based membership inference:
+Additional evaluations:
 
 ~~~bash
-python scripts/evaluate_membership.py \
-  --config configs/generated/pubfig/defense_a_resnet18.yaml \
-  --member-root data/prepared/pubfig/train/defense_a \
-  --nonmember-root data/prepared/pubfig/test/defense_a
+python scripts/evaluate_membership.py --config CONFIG --member-root TRAIN --nonmember-root TEST
+python scripts/evaluate_verification.py --config CONFIG --data-root TEST
+python scripts/evaluate_inversion.py --config CONFIG
+python scripts/evaluate_latency.py --config CONFIG --data-root TEST
 ~~~
 
-Aggregate machine-readable run outputs:
-
-~~~bash
-python scripts/reproduce_tables.py
-~~~
-
-The full sequencing, result scope, and conditions needed for numerical reproduction are described in [the reproducibility guide](docs/reproducibility.md).
+Each command writes machine-readable artifacts below the run output directory. See [the reproducibility guide](docs/reproducibility.md) for the full protocol and interpretation cautions.
 
 ## Extending the work
 
-The package components are intentionally independent:
+The components are deliberately separated:
 
-- Add a transformation beside RhoNCutMix in transforms.py.
-- Add a backbone in build_backbone in models.py.
-- Add an aggregation rule beside fedavg in federated.py.
-- Add an attack or privacy metric without changing training code.
-- Add dataset and defense definitions to paper_grid.yaml and regenerate configurations.
-
-The adaptive inversion routine accepts a logits function, so alternative model interfaces and normalization schemes can be evaluated without coupling attack optimization to one checkpoint format.
+- add an input transform beside RhoNCutMix in transforms.py;
+- add a backbone in build_backbone in models.py;
+- add an aggregation rule beside fedavg in federated.py;
+- add attacks or metrics without changing the training pipeline;
+- extend paper_grid.yaml and regenerate concrete configurations.
 
 ## Reproduction-key notice
 
-Keys committed in example YAML files are deterministic reproduction keys, not secrets. Replace them with an untracked, securely supplied key for any operational deployment.
+Keys in example configurations are deterministic research reproduction keys, not operational secrets. Replace them with a securely supplied, untracked key in any deployment.
 
 ## Citation
 

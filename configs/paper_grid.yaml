@@ -23,31 +23,14 @@ datasets:
     num_classes: 10
     minimum_patch_size: 8
 
-backbones:
-  - resnet18
-  - resnet34
+backbones: [resnet18, resnet34]
 
 defenses:
-  raw:
-    enabled: false
-    rho: 0.0
-    donors: 0
-  defense_a:
-    enabled: true
-    rho: 0.8
-    donors: 2
-  defense_b:
-    enabled: true
-    rho: 0.6
-    donors: 2
-  defense_c:
-    enabled: true
-    rho: 0.8
-    donors: 3
-  defense_d:
-    enabled: true
-    rho: 0.8
-    donors: 4
+  raw:       {enabled: false, rho: 0.0, donors: 0}
+  defense_a: {enabled: true,  rho: 0.8, donors: 2}
+  defense_b: {enabled: true,  rho: 0.6, donors: 2}
+  defense_c: {enabled: true,  rho: 0.8, donors: 3}
+  defense_d: {enabled: true,  rho: 0.8, donors: 4}
 
 permutation:
   grid_size: 8
@@ -60,13 +43,37 @@ federated:
   local_epochs: 3
   batch_size: 64
   learning_rate: 0.001
+  minimum_learning_rate: 0.000001
   weight_decay: 0.0001
+  gradient_clip_norm: 5.0
+  early_stopping_patience: 8
   dirichlet_alpha: 0.5
   confidence_penalty_weight: 0.0
+
+# Run-specific coefficients retained from the experiment notebook.
+confidence_penalty_overrides:
+  pubfig:
+    resnet18: {defense_a: 0.05, defense_b: 0.05, defense_c: 0.05, defense_d: 0.05}
+    resnet34: {defense_a: 0.05}
+  lfw:
+    resnet18: {defense_a: 0.05, defense_b: 0.05, defense_c: 0.05, defense_d: 0.05}
+    resnet34: {defense_b: 0.05, defense_c: 0.10, defense_d: 0.15}
+  pins:
+    resnet18: {defense_a: 0.05, defense_b: 0.05, defense_c: 0.05, defense_d: 0.05}
+  cifar10:
+    resnet18: {defense_a: 0.05, defense_b: 0.05, defense_c: 0.05, defense_d: 0.05}
+    resnet34: {defense_c: 0.05}
 
 evaluation:
   validation_fraction: 0.2
   temperature_scaling: true
+  ece_bins: 15
+  verification_fars: [0.1, 0.01, 0.001]
   inversion_targets: 10
-  inversion_restarts: 10
+  inversion_restarts: 3
   inversion_iterations: 400
+  inversion_learning_rate: 0.05
+  inversion_tv_weight: 0.0005
+  inversion_l2_weight: 0.002
+  inversion_permutation_entropy_weight: 0.05
+  inversion_sinkhorn_iterations: 10

@@ -67,7 +67,7 @@ def main() -> None:
         DataLoader(dataset, batch_size=config.federated.batch_size, shuffle=False),
         device,
     )
-    raw = classification_metrics(logits, targets)
+    raw = classification_metrics(logits, targets, ece_bins=config.evaluation.ece_bins)
     results: dict[str, object] = {"raw": asdict(raw)}
 
     if config.evaluation.temperature_scaling:
@@ -86,7 +86,9 @@ def main() -> None:
             device,
         )
         temperature = fit_temperature(validation_logits, validation_targets)
-        calibrated = classification_metrics(logits, targets, temperature)
+        calibrated = classification_metrics(
+            logits, targets, temperature, ece_bins=config.evaluation.ece_bins
+        )
         results.update(
             {
                 "temperature": temperature,

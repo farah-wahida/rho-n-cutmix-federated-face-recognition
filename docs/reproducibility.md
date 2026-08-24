@@ -1,14 +1,24 @@
 # Reproducibility guide
 
+## What is reproducible from this release
+
+This release contains the reusable implementation, the exact 40-run configuration matrix, all evaluation entry points, and machine-readable reference values for Tables IV–X. It excludes datasets, checkpoints, prepared privacy images, and reconstructed samples because those artifacts are licensed, privacy-sensitive, or too large for Git.
+
+Run the release audit first:
+
+~~~bash
+python scripts/validate_release.py
+~~~
+
 ## Experiment matrix
 
-configs/paper_grid.yaml describes the complete 4-dataset × 2-backbone × 5-setting matrix. Generate the 40 concrete YAML files with:
+Generate all 4-dataset × 2-backbone × 5-setting configurations:
 
 ~~~bash
 python scripts/generate_configs.py
 ~~~
 
-The transformation settings are:
+The generator applies the run-specific confidence-penalty coefficients recorded in configs/paper_grid.yaml; do not replace them with one global value. The common protocol uses five clients, three local epochs, Dirichlet alpha 0.5, Adam, cosine learning-rate decay, gradient clipping at 5.0, patience 8, an 8 × 8 block grid, and a 64-permutation codebook.
 
 | Setting | rho | Donor patches | Keyed permutation | Inverse decoder |
 |---|---:|---:|---|---|
@@ -18,31 +28,37 @@ The transformation settings are:
 | Defense C | 0.8 | 3 | Yes | Yes |
 | Defense D | 0.8 | 4 | Yes | Yes |
 
-The grid uses five clients, three local epochs, Dirichlet alpha 0.5, an 8 × 8 block grid, and a 64-permutation codebook. Change a generated YAML file when reproducing a run whose archived metadata records a different confidence-penalty coefficient or optimizer setting.
+## Dataset split contract
 
-## Recommended run order
+Each split must use class directories with stable identity names. Keep a manifest containing relative path, identity, split, and SHA-256 hash. PubFig, LFW, and PINS remain subject to their original licenses; CIFAR-10 can be downloaded through torchvision. See docs/datasets.md.
 
-1. Fix and record the dataset splits.
-2. Generate the 40 experiment configurations.
-3. Prepare training, validation, and test data for each defended setting.
-4. Train the raw and defended models.
-5. Evaluate recognition utility and validation-fitted calibration.
-6. Evaluate member/non-member score attacks.
-7. Run adaptive inversion for the selected targets and aggregate the outputs.
+Numerical agreement requires the same source releases, filters, exact file-level splits, and library/hardware behavior. The repository therefore distinguishes:
 
-Use a separate output directory for every seed. The scripts write checkpoints and machine-readable JSON rather than embedding results in notebooks.
+- **reference reproduction**: inspect the committed paper tables;
+- **protocol reproduction**: rerun the published code on a compatible data release;
+- **exact numerical reproduction**: additionally requires the original non-redistributable data and checkpoints.
 
-## Result aggregation
+## Run order
 
 ~~~bash
-python scripts/reproduce_tables.py \
-  --outputs outputs \
-  --name evaluation.json \
-  --output results/evaluation_summary.csv
+python scripts/generate_configs.py
+python scripts/prepare_data.py --config configs/generated/pubfig/defense_a_resnet18.yaml
+python scripts/train.py --config configs/generated/pubfig/defense_a_resnet18.yaml --validation-root data/prepared/pubfig/validation/defense_a
+python scripts/evaluate.py --config configs/generated/pubfig/defense_a_resnet18.yaml --data-root data/prepared/pubfig/test/defense_a --validation-root data/prepared/pubfig/validation/defense_a
+python scripts/evaluate_membership.py --config configs/generated/pubfig/defense_a_resnet18.yaml --member-root data/prepared/pubfig/train/defense_a --nonmember-root data/prepared/pubfig/test/defense_a
+python scripts/evaluate_verification.py --config configs/generated/pubfig/defense_a_resnet18.yaml --data-root data/prepared/pubfig/test/defense_a
+python scripts/evaluate_latency.py --config configs/generated/pubfig/defense_a_resnet18.yaml --data-root data/prepared/pubfig/test/defense_a
+python scripts/evaluate_inversion.py --config configs/generated/pubfig/defense_a_resnet18.yaml
 ~~~
 
-Repeat with --name membership.json for membership-inference results.
+Adaptive inversion uses ten target classes, three random restarts per target, 400 maximum iterations, Adam at 0.05, TV weight 5×10⁻⁴, L2 weight 2×10⁻³, permutation-entropy weight 0.05, and ten Sinkhorn iterations. The best restart is selected by target-class probability.
 
-## Scope of this release
+## Reference results and fresh outputs
 
-This repository is a clean, reusable implementation extracted from the research notebook. Dataset files, trained weights, intermediate images, and notebook outputs are intentionally excluded. Exact numerical agreement additionally requires the same data releases, identity filters, splits, preprocessing, software versions, random seeds, and archived run-specific settings used for the paper.
+Published values live in results/paper/. Fresh runs write checkpoint and JSON/CSV artifacts below outputs/<dataset>/<setting>/<backbone>/seed42/. Aggregate fresh results with:
+
+~~~bash
+python scripts/reproduce_tables.py --outputs outputs --name evaluation.json --output results/evaluation_summary.csv
+~~~
+
+Latency values in the paper are workstation measurements and must not be treated as mobile or embedded-device benchmarks.

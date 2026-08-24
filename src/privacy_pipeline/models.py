@@ -40,16 +40,40 @@ class AuthorizedClassifier(nn.Module):
         self.decoder = decoder
         self.backbone = backbone
 
+    def decode(
+        self,
+        images: torch.Tensor,
+        permutation_indices: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        if self.decoder is None:
+            return images
+        if permutation_indices is None:
+            raise ValueError("Defended models require permutation indices.")
+        return self.decoder(images, permutation_indices)
+
+    def forward_features(
+        self,
+        images: torch.Tensor,
+        permutation_indices: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        x = self.decode(images, permutation_indices)
+        backbone = self.backbone
+        x = backbone.conv1(x)
+        x = backbone.bn1(x)
+        x = backbone.relu(x)
+        x = backbone.maxpool(x)
+        x = backbone.layer1(x)
+        x = backbone.layer2(x)
+        x = backbone.layer3(x)
+        x = backbone.layer4(x)
+        return torch.flatten(backbone.avgpool(x), 1)
+
     def forward(
         self,
         images: torch.Tensor,
         permutation_indices: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        if self.decoder is not None:
-            if permutation_indices is None:
-                raise ValueError("Defended models require permutation indices.")
-            images = self.decoder(images, permutation_indices)
-        return self.backbone(images)
+        return self.backbone.fc(self.forward_features(images, permutation_indices))
 
 
 def build_backbone(name: str, num_classes: int, pretrained: bool = True) -> nn.Module:
@@ -62,7 +86,6 @@ def build_backbone(name: str, num_classes: int, pretrained: bool = True) -> nn.M
         model = resnet34(weights=weights)
     else:
         raise ValueError(f"Unsupported backbone: {name}")
-
     model.fc = nn.Linear(model.fc.in_features, num_classes)
     return model
 

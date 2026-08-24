@@ -27,15 +27,25 @@ federated:
   local_epochs: 3
   batch_size: 64
   learning_rate: 0.001
+  minimum_learning_rate: 0.000001
   weight_decay: 0.0001
+  gradient_clip_norm: 5.0
+  early_stopping_patience: 8
   dirichlet_alpha: 0.5
-  confidence_penalty_weight: 0.0
+  confidence_penalty_weight: 0.05
 
 evaluation:
   validation_fraction: 0.2
   temperature_scaling: true
+  ece_bins: 15
+  verification_fars: [0.1, 0.01, 0.001]
   inversion_targets: 10
-  inversion_restarts: 10
+  inversion_restarts: 3
   inversion_iterations: 400
+  inversion_learning_rate: 0.05
+  inversion_tv_weight: 0.0005
+  inversion_l2_weight: 0.002
+  inversion_permutation_entropy_weight: 0.05
+  inversion_sinkhorn_iterations: 10
 
 output_dir: outputs/pubfig/defense_a/resnet18/seed42
