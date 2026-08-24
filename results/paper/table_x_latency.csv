@@ -1,0 +1,9 @@
+dataset,backbone,configuration,test_accuracy_percent,mia_auc,inference_ms_per_image,preprocessing_ms_per_image
+pubfig,resnet18,defense_a,89.80,0.3314,2.1145,1.7464
+pubfig,resnet34,defense_a,91.10,0.3286,1.8385,4.6686
+lfw,resnet18,defense_a,86.14,0.5927,2.3239,2.9962
+lfw,resnet34,defense_a,86.80,0.5467,1.0187,1.9778
+pins,resnet18,defense_a,80.55,0.5142,2.3740,6.8873
+pins,resnet34,defense_a,87.52,0.3365,1.6556,1.7800
+cifar10,resnet18,defense_a,85.20,0.6808,0.3782,0.7345
+cifar10,resnet34,defense_a,94.90,0.0706,1.1696,3.2365
