@@ -42,6 +42,7 @@ class FederatedConfig:
     learning_rate: float
     weight_decay: float
     dirichlet_alpha: float
+    confidence_penalty_weight: float
 
 
 @dataclass(frozen=True)
